@@ -1,5 +1,5 @@
 {
-    "name": "bacart/webdav",
+    "name": "bacart/webdav-client",
     "description": "Simple WebDAV client using GuzzleHTTP",
     "type": "library",
     "require": {
