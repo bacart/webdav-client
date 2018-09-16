@@ -1,0 +1,14 @@
+{
+    "name": "bacart/webdav",
+    "description": "Simple WebDAV client using GuzzleHTTP",
+    "type": "library",
+    "require": {
+        "guzzlehttp/guzzle": "^6.3"
+    },
+    "authors": [
+        {
+            "name": "Bacart",
+            "email": "github@bacart.net"
+        }
+    ]
+}
