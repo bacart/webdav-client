@@ -2,7 +2,7 @@
 
 namespace Bacart\Webdav;
 
-class WebdavClient
+class WebdavClient implements WebdavClientInterface
 {
-    
+
 }
