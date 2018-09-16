@@ -2,13 +2,24 @@
     "name": "bacart/webdav-client",
     "description": "Simple WebDAV client using GuzzleHTTP",
     "type": "library",
+    "keywords": [
+        "php",
+        "webdav",
+        "bacart"
+    ],
+    "license": "MIT",
     "require": {
-        "guzzlehttp/guzzle": "^6.3"
+        "php": "^7.1"
+    },
+    "autoload": {
+        "psr-4": {
+            "Bacart\\WebdavClient\\": "src/"
+        }
     },
     "authors": [
         {
-            "name": "Bacart",
-            "email": "github@bacart.net"
+            "name": "Alex Bacart",
+            "email": "alex@bacart.net"
         }
     ]
 }

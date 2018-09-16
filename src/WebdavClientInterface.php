@@ -1,8 +1,7 @@
 <?php
 
-namespace Bacart\Webdav;
+namespace Bacart\WebdavClient;
 
 interface WebdavClientInterface
 {
-
 }
