@@ -1,6 +1,6 @@
 {
     "name": "bacart/webdav-client",
-    "description": "Simple WebDAV client using GuzzleHTTP",
+    "description": "Bacart WebDAV client",
     "type": "library",
     "keywords": [
         "php",
@@ -9,7 +9,13 @@
     ],
     "license": "MIT",
     "require": {
-        "php": "^7.1"
+        "php": "^7.1",
+        "bacart/common": "^0.1",
+        "bacart/guzzle-client": "^0.1",
+        "bacart/symfony-common": "^0.1"
+    },
+    "require-dev": {
+        "phpstan/phpstan": "^0.10.3"
     },
     "config": {
         "sort-packages": true
