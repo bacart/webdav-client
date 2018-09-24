@@ -16,11 +16,12 @@ class WebDavClient implements WebDavClientInterface
     /** @var GuzzleClientInterface */
     protected $guzzleClient;
 
-    /** @var LoggerInterface */
+    /** @var LoggerInterface|null */
     protected $logger;
 
     /**
-     * {@inheritdoc}
+     * @param GuzzleClientInterface $guzzleClient
+     * @param LoggerInterface|null  $logger
      */
     public function __construct(
         GuzzleClientInterface $guzzleClient,
@@ -72,7 +73,7 @@ class WebDavClient implements WebDavClientInterface
 
             return \in_array(
                 $response->getStatusCode(),
-                WebDavClientInterface::HTTP_DELETE_STATUSES,
+                WebDavClientInterface::HTTP_DELETED_STATUSES,
                 true
             );
         } catch (GuzzleClientException $e) {

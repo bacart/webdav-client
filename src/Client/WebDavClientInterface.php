@@ -2,9 +2,7 @@
 
 namespace Bacart\WebdavClient\Client;
 
-use Bacart\GuzzleClient\Client\GuzzleClientInterface;
 use Bacart\WebdavClient\Dto\WebDavDto;
-use Psr\Log\LoggerInterface;
 use Wa72\HtmlPageDom\HtmlPageCrawler;
 
 // TODO: implement COPY and MOVE
@@ -13,7 +11,7 @@ interface WebDavClientInterface
 {
     public const HTTP_CREATED = 201;
     public const HTTP_MULTI_STATUS = 207;
-    public const HTTP_DELETE_STATUSES = [200, 204];
+    public const HTTP_DELETED_STATUSES = [200, 204];
 
     public const HEADER_DEPTH = 'Depth';
 
@@ -29,15 +27,6 @@ interface WebDavClientInterface
     public const XML_GETLASTMODIFIED = 'getlastmodified';
     public const XML_GETCONTENTLENGTH = 'getcontentlength';
     public const XML_FILTER = 'multistatus response propstat prop';
-
-    /**
-     * @param GuzzleClientInterface $guzzleClient
-     * @param LoggerInterface|null  $logger
-     */
-    public function __construct(
-        GuzzleClientInterface $guzzleClient,
-        LoggerInterface $logger = null
-    );
 
     /**
      * @param string $uri
