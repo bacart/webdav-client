@@ -1,4 +1,4 @@
-Webdav client
+WebDAV client
 =============
 [![PHP from Packagist](https://img.shields.io/packagist/php-v/symfony/symfony.svg)](https://packagist.org/packages/bacart/webdav-client)
 [![Latest Stable Version](https://poser.pugx.org/bacart/webdav-client/v/stable.png)](https://packagist.org/packages/bacart/webdav-client)

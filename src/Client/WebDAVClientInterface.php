@@ -1,13 +1,13 @@
 <?php
 
-namespace Bacart\WebdavClient\Client;
+namespace Bacart\WebDAVClient\Client;
 
-use Bacart\WebdavClient\Dto\WebDavDto;
+use Bacart\WebDAVClient\Dto\WebDAVDto;
 use Wa72\HtmlPageDom\HtmlPageCrawler;
 
 // TODO: implement COPY and MOVE
 
-interface WebDavClientInterface
+interface WebDAVClientInterface
 {
     public const HTTP_CREATED = 201;
     public const HTTP_MULTI_STATUS = 207;
@@ -15,7 +15,6 @@ interface WebDavClientInterface
 
     public const HEADER_DEPTH = 'Depth';
 
-    public const HEADER_AUTHORIZATION = 'Authorization';
     public const HEADER_CONTENT_LENGTH = 'Content-Length';
     public const HEADER_SHA256 = 'Sha256';
     public const HEADER_ETAG = 'Etag';
@@ -45,7 +44,7 @@ interface WebDavClientInterface
     /**
      * @param string $directory
      *
-     * @return \Generator|WebDavDto[]
+     * @return \Generator|WebDAVDto[]
      */
     public function listDirectory(string $directory): \Generator;
 

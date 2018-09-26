@@ -20,7 +20,7 @@
     },
     "autoload": {
         "psr-4": {
-            "Bacart\\WebdavClient\\": "src/"
+            "Bacart\\WebDAVClient\\": "src/"
         }
     },
     "authors": [
