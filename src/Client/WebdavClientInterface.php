@@ -1,13 +1,13 @@
 <?php
 
-namespace Bacart\WebDAVClient\Client;
+namespace Bacart\WebdavClient\Client;
 
-use Bacart\WebDAVClient\Dto\WebDAVDto;
+use Bacart\WebdavClient\Dto\WebdavDto;
 use Wa72\HtmlPageDom\HtmlPageCrawler;
 
 // TODO: implement COPY and MOVE
 
-interface WebDAVClientInterface
+interface WebdavClientInterface
 {
     public const HTTP_CREATED = 201;
     public const HTTP_MULTI_STATUS = 207;
@@ -44,7 +44,7 @@ interface WebDAVClientInterface
     /**
      * @param string $directory
      *
-     * @return \Generator|WebDAVDto[]
+     * @return \Generator|WebdavDto[]
      */
     public function listDirectory(string $directory): \Generator;
 

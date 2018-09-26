@@ -1,8 +1,8 @@
 <?php
 
-namespace Bacart\WebDAVClient\Dto;
+namespace Bacart\WebdavClient\Dto;
 
-class WebDAVDto
+class WebdavDto
 {
     public const DIRECTORY = 'directory';
 
