@@ -1,17 +1,17 @@
 <?php
 
-namespace Bacart\WebdavClient\Client;
+namespace Bacart\WebDAVClient\Client;
 
 use Bacart\GuzzleClient\Client\GuzzleClientInterface;
 use Bacart\GuzzleClient\Exception\GuzzleClientException;
-use Bacart\WebdavClient\Dto\WebDavDto;
-use Bacart\WebdavClient\Exception\WebDavClientException;
+use Bacart\WebDAVClient\Dto\WebDAVDto;
+use Bacart\WebDAVClient\Exception\WebDAVClientException;
 use GuzzleHttp\RequestOptions;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\DomCrawler\Crawler;
 use Wa72\HtmlPageDom\HtmlPageCrawler;
 
-class WebDavClient implements WebDavClientInterface
+class WebDAVClient implements WebDAVClientInterface
 {
     /** @var GuzzleClientInterface */
     protected $guzzleClient;
@@ -43,7 +43,7 @@ class WebDavClient implements WebDavClientInterface
                 GuzzleClientInterface::METHOD_PROPFIND
             );
 
-            return WebDavClientInterface::HTTP_MULTI_STATUS === $response->getStatusCode();
+            return WebDAVClientInterface::HTTP_MULTI_STATUS === $response->getStatusCode();
         } catch (GuzzleClientException $e) {
             if (null !== $this->logger) {
                 $this->logger->notice($e->getMessage());
@@ -56,7 +56,7 @@ class WebDavClient implements WebDavClientInterface
     /**
      * {@inheritdoc}
      *
-     * @throws WebDavClientException
+     * @throws WebDAVClientException
      */
     public function delete(string $uri): bool
     {
@@ -73,18 +73,18 @@ class WebDavClient implements WebDavClientInterface
 
             return \in_array(
                 $response->getStatusCode(),
-                WebDavClientInterface::HTTP_DELETED_STATUSES,
+                WebDAVClientInterface::HTTP_DELETED_STATUSES,
                 true
             );
         } catch (GuzzleClientException $e) {
-            throw new WebDavClientException($e);
+            throw new WebDAVClientException($e);
         }
     }
 
     /**
      * {@inheritdoc}
      *
-     * @throws WebDavClientException
+     * @throws WebDAVClientException
      */
     public function listDirectory(string $directory): \Generator
     {
@@ -95,20 +95,20 @@ class WebDavClient implements WebDavClientInterface
                 $directory,
                 [
                     RequestOptions::HEADERS => [
-                        WebDavClientInterface::HEADER_DEPTH => 1,
+                        WebDAVClientInterface::HEADER_DEPTH => 1,
                     ],
                 ],
                 GuzzleClientInterface::METHOD_PROPFIND
             );
         } catch (GuzzleClientException $e) {
-            throw new WebDavClientException($e);
+            throw new WebDAVClientException($e);
         }
 
-        /** @var WebDavDto[] $webDavDtos */
+        /** @var WebDAVDto[] $webDavDtos */
         $webDavDtos = $crawler
-            ->filter(WebDavClientInterface::XML_FILTER)
-            ->each(function (Crawler $node): WebDavDto {
-                return $this->createWebDavDto($node);
+            ->filter(WebDAVClientInterface::XML_FILTER)
+            ->each(function (Crawler $node): WebDAVDto {
+                return $this->createWebDAVDto($node);
             });
 
         foreach ($webDavDtos as $webDavDto) {
@@ -121,7 +121,7 @@ class WebDavClient implements WebDavClientInterface
     /**
      * {@inheritdoc}
      *
-     * @throws WebDavClientException
+     * @throws WebDAVClientException
      */
     public function createDirectory(string $directory): bool
     {
@@ -138,7 +138,7 @@ class WebDavClient implements WebDavClientInterface
 
             if (!$this->exists($subdirectory)
                 && !$this->directoryCreate($subdirectory)) {
-                throw new WebDavClientException(sprintf(
+                throw new WebDAVClientException(sprintf(
                     'Directory "%s" could not be created',
                     $subdirectory
                 ));
@@ -151,7 +151,7 @@ class WebDavClient implements WebDavClientInterface
     /**
      * {@inheritdoc}
      *
-     * @throws WebDavClientException
+     * @throws WebDAVClientException
      */
     public function writeToFile(string $filename, string $contents): bool
     {
@@ -162,16 +162,16 @@ class WebDavClient implements WebDavClientInterface
                 $filename,
                 [
                     RequestOptions::HEADERS => [
-                        WebDavClientInterface::HEADER_CONTENT_LENGTH => mb_strlen($contents),
-                        WebDavClientInterface::HEADER_SHA256         => hash('sha256', $contents),
-                        WebDavClientInterface::HEADER_ETAG           => md5($contents),
+                        WebDAVClientInterface::HEADER_CONTENT_LENGTH => mb_strlen($contents),
+                        WebDAVClientInterface::HEADER_SHA256         => hash('sha256', $contents),
+                        WebDAVClientInterface::HEADER_ETAG           => md5($contents),
                     ],
                     RequestOptions::BODY => $contents,
                 ],
                 GuzzleClientInterface::METHOD_PUT
             );
 
-            return WebDavClientInterface::HTTP_CREATED === $response->getStatusCode();
+            return WebDAVClientInterface::HTTP_CREATED === $response->getStatusCode();
         } catch (GuzzleClientException $e) {
             if (null !== $this->logger) {
                 $this->logger->error($e->getMessage());
@@ -184,42 +184,42 @@ class WebDavClient implements WebDavClientInterface
     /**
      * {@inheritdoc}
      *
-     * @throws WebDavClientException
+     * @throws WebDAVClientException
      */
     public function readFileAsString(string $filename): string
     {
         try {
             return $this->guzzleClient->getGuzzleResponseAsString($filename);
         } catch (GuzzleClientException $e) {
-            throw new WebDavClientException($e);
+            throw new WebDAVClientException($e);
         }
     }
 
     /**
      * {@inheritdoc}
      *
-     * @throws WebDavClientException
+     * @throws WebDAVClientException
      */
     public function readFileAsJson(string $filename): ?array
     {
         try {
             return $this->guzzleClient->getGuzzleResponseAsJson($filename);
         } catch (GuzzleClientException $e) {
-            throw new WebDavClientException($e);
+            throw new WebDAVClientException($e);
         }
     }
 
     /**
      * {@inheritdoc}
      *
-     * @throws WebDavClientException
+     * @throws WebDAVClientException
      */
     public function readFileAsHtmlPageCrawler(string $filename): HtmlPageCrawler
     {
         try {
             return $this->guzzleClient->getGuzzleResponseAsHtmlPageCrawler($filename);
         } catch (GuzzleClientException $e) {
-            throw new WebDavClientException($e);
+            throw new WebDAVClientException($e);
         }
     }
 
@@ -228,25 +228,25 @@ class WebDavClient implements WebDavClientInterface
      *
      * @throws \InvalidArgumentException
      *
-     * @return WebDavDto
+     * @return WebDAVDto
      */
-    protected function createWebDavDto(Crawler $node): WebDavDto
+    protected function createWebDAVDto(Crawler $node): WebDAVDto
     {
-        $name = $node->filter(WebDavClientInterface::XML_DISPLAYNAME)->text();
+        $name = $node->filter(WebDAVClientInterface::XML_DISPLAYNAME)->text();
 
         if (null === $type = \GuzzleHttp\Psr7\mimetype_from_filename($name)) {
-            $type = $node->filter(WebDavClientInterface::XML_GETCONTENTTYPE)->text();
+            $type = $node->filter(WebDAVClientInterface::XML_GETCONTENTTYPE)->text();
         }
 
-        $created = $node->filter(WebDavClientInterface::XML_CREATIONDATE)->text();
-        $modified = $node->filter(WebDavClientInterface::XML_GETLASTMODIFIED)->text();
+        $created = $node->filter(WebDAVClientInterface::XML_CREATIONDATE)->text();
+        $modified = $node->filter(WebDAVClientInterface::XML_GETLASTMODIFIED)->text();
 
-        $etag = $node->filter(WebDavClientInterface::XML_GETETAG)->text();
-        $size = (int) $node->filter(WebDavClientInterface::XML_GETCONTENTLENGTH)->text();
+        $etag = $node->filter(WebDAVClientInterface::XML_GETETAG)->text();
+        $size = (int) $node->filter(WebDAVClientInterface::XML_GETCONTENTLENGTH)->text();
 
-        return new WebDavDto(
+        return new WebDAVDto(
             $name,
-            $type ?: WebDavDto::DIRECTORY,
+            $type ?: WebDAVDto::DIRECTORY,
             new \DateTime($created),
             new \DateTime($modified),
             $etag,
@@ -268,7 +268,7 @@ class WebDavClient implements WebDavClientInterface
                 GuzzleClientInterface::METHOD_MKCOL
             );
 
-            return WebDavClientInterface::HTTP_CREATED === $response->getStatusCode();
+            return WebDAVClientInterface::HTTP_CREATED === $response->getStatusCode();
         } catch (GuzzleClientException $e) {
             if (null !== $this->logger) {
                 $this->logger->notice($e->getMessage());

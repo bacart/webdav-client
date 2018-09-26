@@ -1,9 +1,9 @@
 <?php
 
-namespace Bacart\WebdavClient\Exception;
+namespace Bacart\WebDAVClient\Exception;
 
 use Bacart\Common\Exception\AbstractCommonException;
 
-class WebDavClientException extends AbstractCommonException
+class WebDAVClientException extends AbstractCommonException
 {
 }
