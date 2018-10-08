@@ -2,15 +2,21 @@
 
 namespace Bacart\WebdavClient\Dto;
 
-class WebdavDto
-{
-    public const DIRECTORY = 'directory';
+use Bacart\WebdavClient\Client\WebdavClientInterface;
 
+class WebdavDto implements \Serializable
+{
     /** @var string */
     protected $name;
 
     /** @var string */
     protected $type;
+
+    /** @var string */
+    protected $etag;
+
+    /** @var int */
+    protected $size;
 
     /** @var \DateTimeInterface */
     protected $created;
@@ -18,34 +24,62 @@ class WebdavDto
     /** @var \DateTimeInterface */
     protected $modified;
 
-    /** @var string|null */
-    protected $etag;
-
-    /** @var int|null */
-    protected $size;
-
     /**
      * @param string             $name
      * @param string             $type
+     * @param string             $etag
+     * @param int                $size
      * @param \DateTimeInterface $created
      * @param \DateTimeInterface $modified
-     * @param string|null        $etag
-     * @param int|null           $size
      */
     public function __construct(
         string $name,
         string $type,
+        string $etag,
+        int $size,
         \DateTimeInterface $created,
-        \DateTimeInterface $modified,
-        string $etag = null,
-        int $size = null
+        \DateTimeInterface $modified
     ) {
         $this->name = $name;
         $this->type = $type;
-        $this->created = $created;
-        $this->modified = $modified;
         $this->etag = $etag;
         $this->size = $size;
+        $this->created = $created;
+        $this->modified = $modified;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function serialize(): string
+    {
+        return serialize([
+            $this->name,
+            $this->type,
+            $this->etag,
+            $this->size,
+            $this->created,
+            $this->modified,
+        ]);
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function unserialize($serialized): void
+    {
+        [
+            $this->name,
+            $this->type,
+            $this->etag,
+            $this->size,
+            $this->created,
+            $this->modified,
+        ] = unserialize($serialized, [
+            'allowed_classes' => [
+                \DateTime::class,
+            ],
+        ]);
     }
 
     /**
@@ -53,7 +87,7 @@ class WebdavDto
      */
     public function isDirectory(): bool
     {
-        return static::DIRECTORY === $this->type;
+        return WebdavClientInterface::TYPE_DIRECTORY === $this->type;
     }
 
     /**
@@ -81,6 +115,22 @@ class WebdavDto
     }
 
     /**
+     * @return string
+     */
+    public function getEtag(): string
+    {
+        return $this->etag;
+    }
+
+    /**
+     * @return int
+     */
+    public function getSize(): int
+    {
+        return $this->size;
+    }
+
+    /**
      * @return \DateTimeInterface
      */
     public function getCreated(): \DateTimeInterface
@@ -94,21 +144,5 @@ class WebdavDto
     public function getModified(): \DateTimeInterface
     {
         return $this->modified;
-    }
-
-    /**
-     * @return null|string
-     */
-    public function getEtag(): ?string
-    {
-        return $this->etag;
-    }
-
-    /**
-     * @return int|null
-     */
-    public function getSize(): ?int
-    {
-        return $this->size;
     }
 }
