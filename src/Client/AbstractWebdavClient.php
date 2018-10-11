@@ -14,6 +14,7 @@ use Psr\Cache\CacheItemPoolInterface;
 use Psr\Cache\InvalidArgumentException;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\DomCrawler\Crawler;
+use Wa72\HtmlPageDom\HtmlPage;
 use function GuzzleHttp\Psr7\mimetype_from_filename;
 
 abstract class AbstractWebdavClient implements WebdavClientInterface
@@ -102,10 +103,79 @@ abstract class AbstractWebdavClient implements WebdavClientInterface
         string $sortBy = WebdavClientInterface::XML_FIELD_DISPLAYNAME,
         int $sortOrder = WebdavClientInterface::SORT_ASC
     ): array {
-        return array_map(
-            [$this, 'createWebdavDto'],
-            $this->listDirectoryHelper($path, $page, $pageSize, $sortBy, $sortOrder)
+        $path = trim($path, '/');
+
+        $nodes = $this
+            ->getHtmlPageCrawler($path)
+            ->filter(WebdavClientInterface::XML_FILTER);
+
+        $items = [
+            WebdavClientInterface::TYPE_DIRECTORY => [],
+            WebdavClientInterface::TYPE_FILE      => [],
+        ];
+
+        foreach ($nodes as $node) {
+            $crawler = new Crawler($node);
+
+            $href = $this->getCrawlerXmlFieldValue(
+                $crawler,
+                WebdavClientInterface::XML_FIELD_HREF
+            );
+
+            if (trim($href, '/') === $path) {
+                continue;
+            }
+
+            $name = $this->getCrawlerXmlFieldValue(
+                $crawler,
+                WebdavClientInterface::XML_FIELD_DISPLAYNAME
+            );
+
+            $type = $this->getCrawlerXmlFieldValue(
+                $crawler,
+                WebdavClientInterface::XML_FIELD_GETCONTENTTYPE
+            );
+
+            if (WebdavClientInterface::TYPE_DIRECTORY !== $type) {
+                $type = WebdavClientInterface::TYPE_FILE;
+            }
+
+            $key = $this->getCrawlerXmlFieldValue($crawler, $sortBy).'|'.$name;
+            $items[$type][$key] = $crawler;
+        }
+
+        foreach (array_keys($items) as $itemKey) {
+            switch ($sortOrder) {
+                case WebdavClientInterface::SORT_ASC:
+                    ksort($items[$itemKey]);
+
+                    break;
+                case WebdavClientInterface::SORT_DESC:
+                    krsort($items[$itemKey]);
+
+                    break;
+                default:
+                    throw new WebdavClientException(sprintf(
+                        'Invalid sort order "%d"',
+                        $sortOrder
+                    ));
+
+                    break;
+            }
+
+            $items[$itemKey] = array_values($items[$itemKey]);
+        }
+
+        $result = array_merge(
+            $items[WebdavClientInterface::TYPE_DIRECTORY],
+            $items[WebdavClientInterface::TYPE_FILE]
         );
+
+        if ($page > WebdavClientInterface::ALL_PAGES) {
+            $result = array_chunk($result, $pageSize)[$page] ?? [];
+        }
+
+        return array_map([$this, 'createWebdavDto'], $result);
     }
 
     /**
@@ -115,7 +185,7 @@ abstract class AbstractWebdavClient implements WebdavClientInterface
     {
         try {
             $node = $this
-                ->getCrawler($path)
+                ->getHtmlPageCrawler($path)
                 ->filter(WebdavClientInterface::XML_FILTER);
         } catch (WebdavClientException $e) {
             if (null !== $this->logger) {
@@ -240,12 +310,12 @@ abstract class AbstractWebdavClient implements WebdavClientInterface
      *
      * @throws WebdavClientException
      *
-     * @return Crawler
+     * @return HtmlPage
      */
-    protected function getCrawler(string $path): Crawler
+    protected function getHtmlPageCrawler(string $path): HtmlPage
     {
         try {
-            return $this->guzzleClient->getGuzzleResponseAsCrawler(
+            return $this->guzzleClient->getGuzzleResponseAsHtmlPage(
                 trim($path, '/'),
                 [
                     RequestOptions::HEADERS => [
@@ -300,93 +370,6 @@ abstract class AbstractWebdavClient implements WebdavClientInterface
         $type = mimetype_from_filename($name) ?: $result;
 
         return $type ?: WebdavClientInterface::TYPE_DIRECTORY;
-    }
-
-    /**
-     * {@inheritdoc}
-     *
-     * @throws WebdavClientException
-     *
-     * @return Crawler[]
-     */
-    protected function listDirectoryHelper(
-        string $path,
-        int $page = WebdavClientInterface::ALL_PAGES,
-        int $pageSize = WebdavClientInterface::DEFAULT_PAGE_SIZE,
-        string $sortBy = WebdavClientInterface::XML_FIELD_CREATIONDATE,
-        int $sortOrder = WebdavClientInterface::SORT_DESC
-    ): array {
-        $path = trim($path, '/');
-
-        $nodes = $this
-            ->getCrawler($path)
-            ->filter(WebdavClientInterface::XML_FILTER);
-
-        $items = [
-            WebdavClientInterface::TYPE_DIRECTORY => [],
-            WebdavClientInterface::TYPE_FILE      => [],
-        ];
-
-        foreach ($nodes as $node) {
-            $crawler = new Crawler($node);
-
-            $href = $this->getCrawlerXmlFieldValue(
-                $crawler,
-                WebdavClientInterface::XML_FIELD_HREF
-            );
-
-            if (trim($href, '/') === $path) {
-                continue;
-            }
-
-            $name = $this->getCrawlerXmlFieldValue(
-                $crawler,
-                WebdavClientInterface::XML_FIELD_DISPLAYNAME
-            );
-
-            $type = $this->getCrawlerXmlFieldValue(
-                $crawler,
-                WebdavClientInterface::XML_FIELD_GETCONTENTTYPE
-            );
-
-            if (WebdavClientInterface::TYPE_DIRECTORY !== $type) {
-                $type = WebdavClientInterface::TYPE_FILE;
-            }
-
-            $key = $this->getCrawlerXmlFieldValue($crawler, $sortBy).'|'.$name;
-            $items[$type][$key] = $crawler;
-        }
-
-        foreach (array_keys($items) as $itemKey) {
-            switch ($sortOrder) {
-                case WebdavClientInterface::SORT_ASC:
-                    ksort($items[$itemKey]);
-
-                    break;
-                case WebdavClientInterface::SORT_DESC:
-                    krsort($items[$itemKey]);
-
-                    break;
-                default:
-                    throw new WebdavClientException(sprintf(
-                        'Invalid sort order "%d"',
-                        $sortOrder
-                    ));
-
-                    break;
-            }
-
-            $items[$itemKey] = array_values($items[$itemKey]);
-        }
-
-        $result = array_merge(
-            $items[WebdavClientInterface::TYPE_DIRECTORY],
-            $items[WebdavClientInterface::TYPE_FILE]
-        );
-
-        return $page > WebdavClientInterface::ALL_PAGES
-            ? array_chunk($result, $pageSize)[$page] ?? []
-            : $result;
     }
 
     /**
