@@ -2,11 +2,13 @@
 
 namespace Bacart\WebdavClient\Client;
 
+use Bacart\Common\Exception\MissingPackageException;
 use Bacart\GuzzleClient\Exception\GuzzleClientException;
 use Bacart\WebdavClient\Dto\WebdavDto;
 use Bacart\WebdavClient\Exception\WebdavClientException;
 use Psr\Cache\InvalidArgumentException;
-use Wa72\HtmlPageDom\HtmlPageCrawler;
+use Symfony\Component\DomCrawler\Crawler;
+use Wa72\HtmlPageDom\HtmlPage;
 
 class WebdavClient extends AbstractWebdavClient
 {
@@ -154,11 +156,29 @@ class WebdavClient extends AbstractWebdavClient
     /**
      * {@inheritdoc}
      */
-    public function readFileAsHtmlPageCrawler(string $path): ?HtmlPageCrawler
+    public function readFileAsCrawler(string $path): ?Crawler
     {
         try {
-            return $this->guzzleClient->getGuzzleResponseAsHtmlPageCrawler($path);
+            return $this->guzzleClient->getGuzzleResponseAsCrawler($path);
         } catch (GuzzleClientException $e) {
+            if (null !== $this->logger) {
+                $this->logger->error($e->getMessage(), [
+                    'path' => $path,
+                ]);
+            }
+
+            return null;
+        }
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function readFileAsHtmlPage(string $path): ?HtmlPage
+    {
+        try {
+            return $this->guzzleClient->getGuzzleResponseAsHtmlPage($path);
+        } catch (GuzzleClientException | MissingPackageException $e) {
             if (null !== $this->logger) {
                 $this->logger->error($e->getMessage(), [
                     'path' => $path,

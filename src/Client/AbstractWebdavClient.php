@@ -2,7 +2,9 @@
 
 namespace Bacart\WebdavClient\Client;
 
+use Bacart\Common\Exception\MissingPackageException;
 use Bacart\Common\Util\ClassUtils;
+use Bacart\GuzzleClient\Client\GuzzleClient;
 use Bacart\GuzzleClient\Client\GuzzleClientInterface;
 use Bacart\GuzzleClient\Exception\GuzzleClientException;
 use Bacart\WebdavClient\Dto\WebdavDto;
@@ -12,12 +14,12 @@ use Psr\Cache\CacheItemPoolInterface;
 use Psr\Cache\InvalidArgumentException;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\DomCrawler\Crawler;
-use Wa72\HtmlPageDom\HtmlPageCrawler;
+use Wa72\HtmlPageDom\HtmlPage;
 use function GuzzleHttp\Psr7\mimetype_from_filename;
 
 abstract class AbstractWebdavClient implements WebdavClientInterface
 {
-    /** @var GuzzleClientInterface */
+    /** @var GuzzleClient */
     protected $guzzleClient;
 
     /** @var LoggerInterface|null */
@@ -239,12 +241,12 @@ abstract class AbstractWebdavClient implements WebdavClientInterface
      *
      * @throws WebdavClientException
      *
-     * @return HtmlPageCrawler
+     * @return HtmlPage
      */
-    protected function getCrawler(string $path): HtmlPageCrawler
+    protected function getCrawler(string $path): HtmlPage
     {
         try {
-            return $this->guzzleClient->getGuzzleResponseAsHtmlPageCrawler(
+            return $this->guzzleClient->getGuzzleResponseAsHtmlPage(
                 trim($path, '/'),
                 [
                     RequestOptions::HEADERS => [
@@ -253,7 +255,7 @@ abstract class AbstractWebdavClient implements WebdavClientInterface
                 ],
                 GuzzleClientInterface::METHOD_PROPFIND
             );
-        } catch (GuzzleClientException $e) {
+        } catch (GuzzleClientException | MissingPackageException $e) {
             throw new WebdavClientException($e);
         }
     }

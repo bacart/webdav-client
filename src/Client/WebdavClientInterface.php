@@ -3,7 +3,8 @@
 namespace Bacart\WebdavClient\Client;
 
 use Bacart\WebdavClient\Dto\WebdavDto;
-use Wa72\HtmlPageDom\HtmlPageCrawler;
+use Symfony\Component\DomCrawler\Crawler;
+use Wa72\HtmlPageDom\HtmlPage;
 
 // TODO: add LOCK, COPY and MOVE methods
 
@@ -87,9 +88,16 @@ interface WebdavClientInterface
     /**
      * @param string $path
      *
-     * @return HtmlPageCrawler
+     * @return Crawler
      */
-    public function readFileAsHtmlPageCrawler(string $path): ?HtmlPageCrawler;
+    public function readFileAsCrawler(string $path): ?Crawler;
+
+    /**
+     * @param string $path
+     *
+     * @return HtmlPage
+     */
+    public function readFileAsHtmlPage(string $path): ?HtmlPage;
 
     /**
      * @param string $path
