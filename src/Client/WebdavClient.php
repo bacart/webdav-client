@@ -160,7 +160,7 @@ class WebdavClient extends AbstractWebdavClient
     {
         try {
             return $this->guzzleClient->getGuzzleResponseAsCrawler($path);
-        } catch (GuzzleClientException $e) {
+        } catch (GuzzleClientException | MissingPackageException $e) {
             if (null !== $this->logger) {
                 $this->logger->error($e->getMessage(), [
                     'path' => $path,

@@ -14,7 +14,6 @@ use Psr\Cache\CacheItemPoolInterface;
 use Psr\Cache\InvalidArgumentException;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\DomCrawler\Crawler;
-use Wa72\HtmlPageDom\HtmlPage;
 use function GuzzleHttp\Psr7\mimetype_from_filename;
 
 abstract class AbstractWebdavClient implements WebdavClientInterface
@@ -241,12 +240,12 @@ abstract class AbstractWebdavClient implements WebdavClientInterface
      *
      * @throws WebdavClientException
      *
-     * @return HtmlPage
+     * @return Crawler
      */
-    protected function getCrawler(string $path): HtmlPage
+    protected function getCrawler(string $path): Crawler
     {
         try {
-            return $this->guzzleClient->getGuzzleResponseAsHtmlPage(
+            return $this->guzzleClient->getGuzzleResponseAsCrawler(
                 trim($path, '/'),
                 [
                     RequestOptions::HEADERS => [
