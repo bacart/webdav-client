@@ -10,7 +10,7 @@ use Wa72\HtmlPageDom\HtmlPage;
 
 interface WebdavClientInterface
 {
-    public const DIRECTORY_LIST_CACHE_ITEM_PREFIX = '//';
+    public const DIRECTORY_LIST_CACHE_ITEM_PREFIX = "directory_list_\r\n";
 
     public const SORT_ASC = 1;
     public const SORT_DESC = 2;
