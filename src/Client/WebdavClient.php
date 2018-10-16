@@ -71,7 +71,7 @@ class WebdavClient extends AbstractWebdavClient
                 $sortOrder
             );
 
-            if (null === $names = $this->saveWebdavDtos($webdavDtos, $path)) {
+            if (null === $names = $this->cacheWebdavDtos($webdavDtos, $path)) {
                 throw new WebdavClientException(sprintf(
                     'Failed to save webdav DTOs for path "%s"',
                     $path
@@ -223,7 +223,7 @@ class WebdavClient extends AbstractWebdavClient
      *
      * @return null|string[]
      */
-    protected function saveWebdavDtos(array $webdavDtos, string $path): ?array
+    protected function cacheWebdavDtos(array $webdavDtos, string $path): ?array
     {
         $result = [];
         $savesCount = 0;
@@ -268,5 +268,93 @@ class WebdavClient extends AbstractWebdavClient
         }
 
         return $result;
+    }
+
+    /**
+     * @param string $path
+     *
+     * @return string
+     */
+    protected function getCacheItemKey(string $path): string
+    {
+        return md5($this->cachePrefix.'|'.trim($path, '/'));
+    }
+
+    /**
+     * @param string   $path
+     * @param callable $onMiss
+     *
+     * @return mixed
+     */
+    protected function getFromCache(string $path, callable $onMiss)
+    {
+        $path = trim($path, '/');
+
+        if (null === $this->cache) {
+            return $onMiss($path);
+        }
+
+        $cacheItemKey = $this->getCacheItemKey($path);
+
+        try {
+            $cacheItem = $this->cache->getItem($cacheItemKey);
+        } catch (InvalidArgumentException $e) {
+            if (null !== $this->logger) {
+                $this->logger->error($e->getMessage(), [
+                    'path' => $path,
+                ]);
+            }
+
+            return $onMiss($path);
+        }
+
+        if ($cacheItem->isHit()) {
+            if (null !== $this->logger) {
+                $this->logger->info('Webdav result was taken from cache', [
+                    'path' => $path,
+                ]);
+            }
+
+            return $cacheItem->get();
+        }
+
+        $result = $onMiss($path);
+        $cacheItem->set($result);
+        $this->cache->save($cacheItem);
+
+        return $result;
+    }
+
+    /**
+     * @param string $path
+     *
+     * @return bool
+     */
+    protected function deleteFromCache(string $path): bool
+    {
+        if (null === $this->cache) {
+            return true;
+        }
+
+        $path = trim($path, '/');
+
+        $cacheItemKeys = [
+            $this->getCacheItemKey($path),
+            $this->getCacheItemKey(
+                WebdavClientInterface::DIRECTORY_LIST_CACHE_ITEM_PREFIX.$path
+            ),
+        ];
+
+        try {
+            return $this->cache->deleteItems($cacheItemKeys);
+        } catch (InvalidArgumentException $e) {
+            if (null !== $this->logger) {
+                $this->logger->error($e->getMessage(), [
+                    'path' => $path,
+                ]);
+            }
+        }
+
+        return false;
     }
 }

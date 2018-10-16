@@ -11,7 +11,6 @@ use Bacart\WebdavClient\Dto\WebdavDto;
 use Bacart\WebdavClient\Exception\WebdavClientException;
 use GuzzleHttp\RequestOptions;
 use Psr\Cache\CacheItemPoolInterface;
-use Psr\Cache\InvalidArgumentException;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\DomCrawler\Crawler;
 use Wa72\HtmlPageDom\HtmlPage;
@@ -451,93 +450,5 @@ abstract class AbstractWebdavClient implements WebdavClientInterface
             new \DateTime($created),
             new \DateTime($modified)
         );
-    }
-
-    /**
-     * @param string $path
-     *
-     * @return string
-     */
-    protected function getCacheItemKey(string $path): string
-    {
-        return md5($this->cachePrefix.'|'.trim($path, '/'));
-    }
-
-    /**
-     * @param string   $path
-     * @param callable $onMiss
-     *
-     * @return mixed
-     */
-    protected function getFromCache(string $path, callable $onMiss)
-    {
-        $path = trim($path, '/');
-
-        if (null === $this->cache) {
-            return $onMiss($path);
-        }
-
-        $cacheItemKey = $this->getCacheItemKey($path);
-
-        try {
-            $cacheItem = $this->cache->getItem($cacheItemKey);
-        } catch (InvalidArgumentException $e) {
-            if (null !== $this->logger) {
-                $this->logger->error($e->getMessage(), [
-                    'path' => $path,
-                ]);
-            }
-
-            return $onMiss($path);
-        }
-
-        if ($cacheItem->isHit()) {
-            if (null !== $this->logger) {
-                $this->logger->info('Webdav result was taken from cache', [
-                    'path' => $path,
-                ]);
-            }
-
-            return $cacheItem->get();
-        }
-
-        $result = $onMiss($path);
-        $cacheItem->set($result);
-        $this->cache->save($cacheItem);
-
-        return $result;
-    }
-
-    /**
-     * @param string $path
-     *
-     * @return bool
-     */
-    protected function deleteFromCache(string $path): bool
-    {
-        if (null === $this->cache) {
-            return true;
-        }
-
-        $path = trim($path, '/');
-
-        $cacheItemKeys = [
-            $this->getCacheItemKey($path),
-            $this->getCacheItemKey(
-                WebdavClientInterface::DIRECTORY_LIST_CACHE_ITEM_PREFIX.$path
-            ),
-        ];
-
-        try {
-            return $this->cache->deleteItems($cacheItemKeys);
-        } catch (InvalidArgumentException $e) {
-            if (null !== $this->logger) {
-                $this->logger->error($e->getMessage(), [
-                    'path' => $path,
-                ]);
-            }
-        }
-
-        return false;
     }
 }
