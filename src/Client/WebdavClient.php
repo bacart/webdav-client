@@ -5,7 +5,6 @@ namespace Bacart\WebdavClient\Client;
 use Bacart\Common\Exception\MissingPackageException;
 use Bacart\GuzzleClient\Exception\GuzzleClientException;
 use Bacart\WebdavClient\Dto\WebdavDto;
-use Bacart\WebdavClient\Exception\WebdavClientException;
 use Psr\Cache\InvalidArgumentException;
 use Symfony\Component\DomCrawler\Crawler;
 use Wa72\HtmlPageDom\HtmlPage;
@@ -48,6 +47,7 @@ class WebdavClient extends AbstractWebdavClient
             WebdavClientInterface::DIRECTORY_LIST_CACHE_ITEM_PREFIX.$path
         );
 
+        /* @psalm-suppress InvalidCatch */
         try {
             $cacheItem = $this->cache->getItem($cacheItemKey);
         } catch (InvalidArgumentException $e) {
@@ -71,24 +71,21 @@ class WebdavClient extends AbstractWebdavClient
                 $sortOrder
             );
 
-            if (null === $names = $this->cacheWebdavDtos($webdavDtos, $path)) {
-                throw new WebdavClientException(sprintf(
-                    'Failed to save webdav DTOs for path "%s"',
-                    $path
-                ));
+            $filenames = $this->cacheWebdavDtos($webdavDtos, $path);
+
+            if (!empty($filenames)) {
+                $result[$params] = $filenames;
+
+                $cacheItem->set($result);
+                $this->cache->save($cacheItem);
             }
-
-            $result[$params] = $names;
-
-            $cacheItem->set($result);
-            $this->cache->save($cacheItem);
-        } else {
+        } elseif (null !== $this->logger) {
             $this->logger->info('Webdav result was taken from cache', [
                 'path' => $path,
             ]);
         }
 
-        return array_map([$this, 'getPathInfo'], $result[$params]);
+        return array_map([$this, 'getPathInfo'], $result[$params] ?? []);
     }
 
     /**
@@ -221,20 +218,23 @@ class WebdavClient extends AbstractWebdavClient
      * @param WebdavDto[] $webdavDtos
      * @param string      $path
      *
-     * @return null|string[]
+     * @return string[]
      */
-    protected function cacheWebdavDtos(array $webdavDtos, string $path): ?array
+    protected function cacheWebdavDtos(array $webdavDtos, string $path): array
     {
         $result = [];
-        $savesCount = 0;
+
+        if (null === $this->cache) {
+            return $result;
+        }
 
         /** @var WebdavDto $webdavDto */
         foreach ($webdavDtos as $webdavDto) {
             $filename = $path.'/'.$webdavDto->getName();
-            $result[] = $filename;
 
             $cacheItemKey = $this->getCacheItemKey($filename);
 
+            /* @psalm-suppress InvalidCatch */
             try {
                 $cacheItem = $this->cache->getItem($cacheItemKey);
             } catch (InvalidArgumentException $e) {
@@ -244,7 +244,7 @@ class WebdavClient extends AbstractWebdavClient
                     ]);
                 }
 
-                return null;
+                continue;
             }
 
             if ($cacheItem->isHit()) {
@@ -259,11 +259,11 @@ class WebdavClient extends AbstractWebdavClient
             $cacheItem->set($webdavDto);
 
             if ($this->cache->saveDeferred($cacheItem)) {
-                ++$savesCount;
+                $result[] = $filename;
             }
         }
 
-        if ($savesCount > 0) {
+        if (!empty($result)) {
             $this->cache->commit();
         }
 
@@ -296,6 +296,7 @@ class WebdavClient extends AbstractWebdavClient
 
         $cacheItemKey = $this->getCacheItemKey($path);
 
+        /* @psalm-suppress InvalidCatch */
         try {
             $cacheItem = $this->cache->getItem($cacheItemKey);
         } catch (InvalidArgumentException $e) {
@@ -345,6 +346,7 @@ class WebdavClient extends AbstractWebdavClient
             ),
         ];
 
+        /* @psalm-suppress InvalidCatch */
         try {
             return $this->cache->deleteItems($cacheItemKeys);
         } catch (InvalidArgumentException $e) {

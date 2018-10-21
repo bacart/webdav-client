@@ -196,9 +196,15 @@ abstract class AbstractWebdavClient implements WebdavClientInterface
             return null;
         }
 
-        return $node->count()
-            ? $this->createWebdavDto($node->first())
-            : null;
+        if (0 === $node->count()) {
+            return null;
+        }
+
+        try {
+            return $this->createWebdavDto($node->first());
+        } catch (WebdavClientException $e) {
+            return null;
+        }
     }
 
     /**
@@ -400,47 +406,41 @@ abstract class AbstractWebdavClient implements WebdavClientInterface
     /**
      * @param Crawler $crawler
      *
+     * @throws WebdavClientException
+     *
      * @return WebdavDto
      */
     protected function createWebdavDto(Crawler $crawler): WebdavDto
     {
-        try {
-            $name = $this->getCrawlerXmlFieldValue(
-                $crawler,
-                WebdavClientInterface::XML_FIELD_DISPLAYNAME
-            );
+        $name = $this->getCrawlerXmlFieldValue(
+            $crawler,
+            WebdavClientInterface::XML_FIELD_DISPLAYNAME
+        );
 
-            $type = $this->getCrawlerXmlFieldValue(
-                $crawler,
-                WebdavClientInterface::XML_FIELD_GETCONTENTTYPE
-            );
+        $type = $this->getCrawlerXmlFieldValue(
+            $crawler,
+            WebdavClientInterface::XML_FIELD_GETCONTENTTYPE
+        );
 
-            $created = $this->getCrawlerXmlFieldValue(
-                $crawler,
-                WebdavClientInterface::XML_FIELD_CREATIONDATE
-            );
+        $created = $this->getCrawlerXmlFieldValue(
+            $crawler,
+            WebdavClientInterface::XML_FIELD_CREATIONDATE
+        );
 
-            $modified = $this->getCrawlerXmlFieldValue(
-                $crawler,
-                WebdavClientInterface::XML_FIELD_GETLASTMODIFIED
-            );
+        $modified = $this->getCrawlerXmlFieldValue(
+            $crawler,
+            WebdavClientInterface::XML_FIELD_GETLASTMODIFIED
+        );
 
-            $etag = $this->getCrawlerXmlFieldValue(
-                $crawler,
-                WebdavClientInterface::XML_FIELD_GETETAG
-            );
+        $etag = $this->getCrawlerXmlFieldValue(
+            $crawler,
+            WebdavClientInterface::XML_FIELD_GETETAG
+        );
 
-            $size = $this->getCrawlerXmlFieldValue(
-                $crawler,
-                WebdavClientInterface::XML_FIELD_GETCONTENTLENGTH
-            );
-        } catch (WebdavClientException $e) {
-            if (null !== $this->logger) {
-                $this->logger->error($e->getMessage());
-            }
-
-            return null;
-        }
+        $size = $this->getCrawlerXmlFieldValue(
+            $crawler,
+            WebdavClientInterface::XML_FIELD_GETCONTENTLENGTH
+        );
 
         return new WebdavDto(
             $name,
