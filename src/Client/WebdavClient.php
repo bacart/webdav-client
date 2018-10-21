@@ -47,7 +47,6 @@ class WebdavClient extends AbstractWebdavClient
             WebdavClientInterface::DIRECTORY_LIST_CACHE_ITEM_PREFIX.$path
         );
 
-        /* @psalm-suppress InvalidCatch */
         try {
             $cacheItem = $this->cache->getItem($cacheItemKey);
         } catch (InvalidArgumentException $e) {
@@ -234,7 +233,6 @@ class WebdavClient extends AbstractWebdavClient
 
             $cacheItemKey = $this->getCacheItemKey($filename);
 
-            /* @psalm-suppress InvalidCatch */
             try {
                 $cacheItem = $this->cache->getItem($cacheItemKey);
             } catch (InvalidArgumentException $e) {
@@ -296,7 +294,6 @@ class WebdavClient extends AbstractWebdavClient
 
         $cacheItemKey = $this->getCacheItemKey($path);
 
-        /* @psalm-suppress InvalidCatch */
         try {
             $cacheItem = $this->cache->getItem($cacheItemKey);
         } catch (InvalidArgumentException $e) {
@@ -346,7 +343,6 @@ class WebdavClient extends AbstractWebdavClient
             ),
         ];
 
-        /* @psalm-suppress InvalidCatch */
         try {
             return $this->cache->deleteItems($cacheItemKeys);
         } catch (InvalidArgumentException $e) {
