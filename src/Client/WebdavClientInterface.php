@@ -10,13 +10,11 @@ use Wa72\HtmlPageDom\HtmlPage;
 
 interface WebdavClientInterface
 {
-    public const DIRECTORY_LIST_CACHE_ITEM_PREFIX = "directory_list_\r\n";
-
     public const SORT_ASC = 1;
     public const SORT_DESC = 2;
 
     public const ALL_PAGES = -1;
-    public const DEFAULT_PAGE_SIZE = 3;
+    public const DEFAULT_PAGE_SIZE = 20;
 
     public const TYPE_FILE = 'file';
     public const TYPE_DIRECTORY = 'directory';

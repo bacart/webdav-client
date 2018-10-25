@@ -4,7 +4,7 @@ namespace Bacart\WebdavClient\Dto;
 
 use Bacart\WebdavClient\Client\WebdavClientInterface;
 
-class WebdavDto implements \Serializable
+class WebdavDto
 {
     /** @var string */
     protected $name;
@@ -46,40 +46,6 @@ class WebdavDto implements \Serializable
         $this->size = $size;
         $this->created = $created;
         $this->modified = $modified;
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function serialize(): string
-    {
-        return serialize([
-            $this->name,
-            $this->type,
-            $this->etag,
-            $this->size,
-            $this->created,
-            $this->modified,
-        ]);
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function unserialize($serialized): void
-    {
-        [
-            $this->name,
-            $this->type,
-            $this->etag,
-            $this->size,
-            $this->created,
-            $this->modified,
-        ] = unserialize($serialized, [
-            'allowed_classes' => [
-                \DateTime::class,
-            ],
-        ]);
     }
 
     /**

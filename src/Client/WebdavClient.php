@@ -3,29 +3,81 @@
 namespace Bacart\WebdavClient\Client;
 
 use Bacart\Common\Exception\MissingPackageException;
+use Bacart\Common\Util\ClassUtils;
+use Bacart\GuzzleClient\Client\GuzzleClient;
+use Bacart\GuzzleClient\Client\GuzzleClientInterface;
 use Bacart\GuzzleClient\Exception\GuzzleClientException;
 use Bacart\WebdavClient\Dto\WebdavDto;
-use Psr\Cache\InvalidArgumentException;
+use Bacart\WebdavClient\Exception\WebdavClientException;
+use GuzzleHttp\RequestOptions;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\DomCrawler\Crawler;
 use Wa72\HtmlPageDom\HtmlPage;
+use function GuzzleHttp\Psr7\mimetype_from_filename;
 
-class WebdavClient extends AbstractWebdavClient
+class WebdavClient implements WebdavClientInterface
 {
+    /** @var GuzzleClient */
+    protected $guzzleClient;
+
+    /** @var LoggerInterface|null */
+    protected $logger;
+
+    /** @var string[] */
+    protected $xmlFieldTypes;
+
     /**
-     * {@inheritdoc}
+     * @param GuzzleClientInterface $guzzleClient
+     * @param LoggerInterface|null  $logger
      */
-    public function getSupportedMethods(): ?array
-    {
-        return $this->getFromCache(
-            '',
-            function (): ?array {
-                return parent::getSupportedMethods();
-            }
+    public function __construct(
+        GuzzleClientInterface $guzzleClient,
+        LoggerInterface $logger = null
+    ) {
+        $this->guzzleClient = $guzzleClient;
+        $this->logger = $logger;
+
+        $this->xmlFieldTypes = ClassUtils::getClassConstants(
+            WebdavClientInterface::class,
+            'XML_FIELD_'
         );
     }
 
     /**
      * {@inheritdoc}
+     */
+    public function getSupportedMethods(): ?array
+    {
+        try {
+            $response = $this->guzzleClient->getGuzzleResponse(
+                '',
+                [],
+                GuzzleClientInterface::METHOD_OPTIONS
+            );
+        } catch (GuzzleClientException $e) {
+            if (null !== $this->logger) {
+                $this->logger->error($e->getMessage());
+            }
+
+            return null;
+        }
+
+        $allow = $response->hasHeader(WebdavClientInterface::HEADER_ALLOW)
+            ? $response->getHeader(WebdavClientInterface::HEADER_ALLOW)[0] ?? ''
+            : '';
+
+        $result = array_map(
+            'trim',
+            explode(',', $allow)
+        );
+
+        return array_filter($result);
+    }
+
+    /**
+     * {@inheritdoc}
+     *
+     * @throws WebdavClientException
      */
     public function listDirectory(
         string $path,
@@ -34,57 +86,77 @@ class WebdavClient extends AbstractWebdavClient
         string $sortBy = WebdavClientInterface::XML_FIELD_DISPLAYNAME,
         int $sortOrder = WebdavClientInterface::SORT_ASC
     ): array {
-        if (null === $this->cache) {
-            return parent::listDirectory($path, $page, $pageSize, $sortBy, $sortOrder);
-        }
-
-        $args = \func_get_args();
-        array_shift($args);
-        $params = implode('|', $args);
-
         $path = trim($path, '/');
-        $cacheItemKey = $this->getCacheItemKey(
-            WebdavClientInterface::DIRECTORY_LIST_CACHE_ITEM_PREFIX.$path
-        );
 
-        try {
-            $cacheItem = $this->cache->getItem($cacheItemKey);
-        } catch (InvalidArgumentException $e) {
-            if (null !== $this->logger) {
-                $this->logger->error($e->getMessage(), [
-                    'path' => $path,
-                ]);
+        $nodes = $this
+            ->getHtmlPageCrawler($path)
+            ->filter(WebdavClientInterface::XML_FILTER);
+
+        $items = [
+            WebdavClientInterface::TYPE_DIRECTORY => [],
+            WebdavClientInterface::TYPE_FILE      => [],
+        ];
+
+        foreach ($nodes as $node) {
+            $crawler = new Crawler($node);
+
+            if (!$this->pathCrawlerIsValid($crawler, $path)) {
+                continue;
             }
 
-            return parent::listDirectory($path, $page, $pageSize, $sortBy, $sortOrder);
-        }
-
-        $result = $cacheItem->isHit() ? $cacheItem->get() : [];
-
-        if (empty($result[$params])) {
-            $webdavDtos = parent::listDirectory(
-                $path,
-                $page,
-                $pageSize,
-                $sortBy,
-                $sortOrder
+            $type = $this->getCrawlerXmlFieldValue(
+                $crawler,
+                WebdavClientInterface::XML_FIELD_GETCONTENTTYPE
             );
 
-            $filenames = $this->cacheWebdavDtos($webdavDtos, $path);
-
-            if (!empty($filenames)) {
-                $result[$params] = $filenames;
-
-                $cacheItem->set($result);
-                $this->cache->save($cacheItem);
+            if (WebdavClientInterface::TYPE_DIRECTORY !== $type) {
+                $type = WebdavClientInterface::TYPE_FILE;
             }
-        } elseif (null !== $this->logger) {
-            $this->logger->info('Webdav result was taken from cache', [
-                'path' => $path,
-            ]);
+
+            $name = $this->getCrawlerXmlFieldValue(
+                $crawler,
+                WebdavClientInterface::XML_FIELD_DISPLAYNAME
+            );
+
+            $key = WebdavClientInterface::XML_FIELD_DISPLAYNAME !== $sortBy
+                ? $this->getCrawlerXmlFieldValue($crawler, $sortBy).'|'.$name
+                : $name;
+
+            $items[$type][$key] = $crawler;
         }
 
-        return array_map([$this, 'getPathInfo'], $result[$params] ?? []);
+        foreach (array_keys($items) as $itemKey) {
+            switch ($sortOrder) {
+                case WebdavClientInterface::SORT_ASC:
+                    ksort($items[$itemKey]);
+
+                    break;
+                case WebdavClientInterface::SORT_DESC:
+                    krsort($items[$itemKey]);
+
+                    break;
+                default:
+                    throw new WebdavClientException(sprintf(
+                        'Invalid sort order "%d"',
+                        $sortOrder
+                    ));
+
+                    break;
+            }
+
+            $items[$itemKey] = array_values($items[$itemKey]);
+        }
+
+        $result = array_merge(
+            $items[WebdavClientInterface::TYPE_DIRECTORY],
+            $items[WebdavClientInterface::TYPE_FILE]
+        );
+
+        if ($page > WebdavClientInterface::ALL_PAGES) {
+            $result = array_chunk($result, $pageSize)[$page] ?? [];
+        }
+
+        return array_map([$this, 'createWebdavDto'], $result);
     }
 
     /**
@@ -92,12 +164,29 @@ class WebdavClient extends AbstractWebdavClient
      */
     public function getPathInfo(string $path): ?WebdavDto
     {
-        return $this->getFromCache(
-            $path,
-            function (string $path): ?WebdavDto {
-                return parent::getPathInfo($path);
+        try {
+            $node = $this
+                ->getHtmlPageCrawler($path)
+                ->filter(WebdavClientInterface::XML_FILTER);
+        } catch (WebdavClientException $e) {
+            if (null !== $this->logger) {
+                $this->logger->error($e->getMessage(), [
+                    'path' => $path,
+                ]);
             }
-        );
+
+            return null;
+        }
+
+        if (0 === $node->count()) {
+            return null;
+        }
+
+        try {
+            return $this->createWebdavDto($node->first());
+        } catch (WebdavClientException $e) {
+            return null;
+        }
     }
 
     /**
@@ -105,12 +194,102 @@ class WebdavClient extends AbstractWebdavClient
      */
     public function exists(string $path): bool
     {
-        return $this->getFromCache(
-            $path,
-            function (string $path): bool {
-                return parent::exists($path);
+        return null !== $this->getPathInfo($path);
+    }
+
+    /**
+     * {@inheritdoc}
+     *
+     * @throws WebdavClientException
+     */
+    public function createDirectory(string $path): bool
+    {
+        if ($this->exists($path)) {
+            return true;
+        }
+
+        $directory = trim($path, '/');
+        $directoryParts = explode('/', $directory);
+        $subdirectory = '';
+
+        foreach ($directoryParts as $directoryPart) {
+            $subdirectory = ltrim(
+                $subdirectory.'/'.$directoryPart,
+                '/'
+            );
+
+            if ($this->exists($subdirectory)) {
+                continue;
             }
-        );
+
+            if (!$this->createSubdirectory($subdirectory)) {
+                throw new WebdavClientException(sprintf(
+                    'Directory "%s" was not created',
+                    $subdirectory
+                ));
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * {@inheritdoc}
+     *
+     * @throws WebdavClientException
+     */
+    public function writeToFile(string $path, string $contents): bool
+    {
+        if (!$this->createDirectory(\dirname($path))) {
+            return false;
+        }
+
+        try {
+            $response = $this->guzzleClient->getGuzzleResponse(
+                trim($path, '/'),
+                [
+                    RequestOptions::BODY => $contents,
+                ],
+                GuzzleClientInterface::METHOD_PUT
+            );
+
+            return GuzzleClientInterface::HTTP_CREATED === $response->getStatusCode();
+        } catch (GuzzleClientException $e) {
+            throw new WebdavClientException($e);
+        }
+    }
+
+    /**
+     * {@inheritdoc}
+     *
+     * @throws WebdavClientException
+     */
+    public function delete(string $path): bool
+    {
+        if (!$this->exists($path)) {
+            return true;
+        }
+
+        $deletedStatuses = [
+            GuzzleClientInterface::HTTP_OK,
+            GuzzleClientInterface::HTTP_NO_CONTENT,
+        ];
+
+        try {
+            $response = $this->guzzleClient->getGuzzleResponse(
+                trim($path, '/'),
+                [],
+                GuzzleClientInterface::METHOD_DELETE
+            );
+
+            return \in_array(
+                $response->getStatusCode(),
+                $deletedStatuses,
+                true
+            );
+        } catch (GuzzleClientException $e) {
+            throw new WebdavClientException($e);
+        }
     }
 
     /**
@@ -186,141 +365,88 @@ class WebdavClient extends AbstractWebdavClient
     }
 
     /**
-     * {@inheritdoc}
-     */
-    public function createDirectory(string $path): bool
-    {
-        return parent::createDirectory($path)
-            && $this->deleteFromCache(\dirname($path));
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function writeToFile(string $path, string $contents): bool
-    {
-        return parent::writeToFile($path, $contents)
-            && $this->deleteFromCache($path);
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function delete(string $path): bool
-    {
-        return parent::delete($path)
-            && $this->deleteFromCache($path)
-            && $this->deleteFromCache(\dirname($path));
-    }
-
-    /**
-     * @param WebdavDto[] $webdavDtos
-     * @param string      $path
+     * @param Crawler $crawler
+     * @param string  $path
      *
-     * @return string[]
+     * @throws WebdavClientException
+     *
+     * @return bool
      */
-    protected function cacheWebdavDtos(array $webdavDtos, string $path): array
+    protected function pathCrawlerIsValid(Crawler $crawler, string $path): bool
     {
-        $result = [];
+        $href = $this->getCrawlerXmlFieldValue(
+            $crawler,
+            WebdavClientInterface::XML_FIELD_HREF
+        );
 
-        if (null === $this->cache) {
-            return $result;
-        }
-
-        /** @var WebdavDto $webdavDto */
-        foreach ($webdavDtos as $webdavDto) {
-            $filename = $path.'/'.$webdavDto->getName();
-
-            $cacheItemKey = $this->getCacheItemKey($filename);
-
-            try {
-                $cacheItem = $this->cache->getItem($cacheItemKey);
-            } catch (InvalidArgumentException $e) {
-                if (null !== $this->logger) {
-                    $this->logger->error($e->getMessage(), [
-                        'path' => $path,
-                    ]);
-                }
-
-                continue;
-            }
-
-            if ($cacheItem->isHit()) {
-                $cachedWebdavDto = $cacheItem->get();
-
-                if ($cachedWebdavDto instanceof WebdavDto
-                    && $cachedWebdavDto->getEtag() === $webdavDto->getEtag()) {
-                    continue;
-                }
-            }
-
-            $cacheItem->set($webdavDto);
-
-            if ($this->cache->saveDeferred($cacheItem)) {
-                $result[] = $filename;
-            }
-        }
-
-        if (!empty($result)) {
-            $this->cache->commit();
-        }
-
-        return $result;
+        return trim($href, '/') !== $path;
     }
 
     /**
      * @param string $path
      *
-     * @return string
+     * @throws WebdavClientException
+     *
+     * @return HtmlPage
      */
-    protected function getCacheItemKey(string $path): string
+    protected function getHtmlPageCrawler(string $path): HtmlPage
     {
-        return md5($this->cachePrefix.'|'.trim($path, '/'));
+        try {
+            return $this->guzzleClient->getGuzzleResponseAsHtmlPage(
+                trim($path, '/'),
+                [
+                    RequestOptions::HEADERS => [
+                        WebdavClientInterface::HEADER_DEPTH => 1,
+                    ],
+                ],
+                GuzzleClientInterface::METHOD_PROPFIND
+            );
+        } catch (GuzzleClientException | MissingPackageException $e) {
+            throw new WebdavClientException($e);
+        }
     }
 
     /**
-     * @param string   $path
-     * @param callable $onMiss
+     * @param Crawler $crawler
+     * @param string  $xmlFieldType
      *
-     * @return mixed
+     * @throws WebdavClientException
+     *
+     * @return string
      */
-    protected function getFromCache(string $path, callable $onMiss)
-    {
-        $path = trim($path, '/');
-
-        if (null === $this->cache) {
-            return $onMiss($path);
+    protected function getCrawlerXmlFieldValue(
+        Crawler $crawler,
+        string $xmlFieldType
+    ): string {
+        if (!\in_array($xmlFieldType, $this->xmlFieldTypes, true)) {
+            throw new WebdavClientException(sprintf(
+                'Invalid XML field type "%s"',
+                $xmlFieldType
+            ));
         }
-
-        $cacheItemKey = $this->getCacheItemKey($path);
 
         try {
-            $cacheItem = $this->cache->getItem($cacheItemKey);
-        } catch (InvalidArgumentException $e) {
-            if (null !== $this->logger) {
-                $this->logger->error($e->getMessage(), [
-                    'path' => $path,
-                ]);
-            }
+            $field = $crawler->filter($xmlFieldType);
 
-            return $onMiss($path);
+            $result = $field->count()
+                ? trim($field->text())
+                : '';
+        } catch (\InvalidArgumentException $e) {
+            throw new WebdavClientException($e);
         }
 
-        if ($cacheItem->isHit()) {
-            if (null !== $this->logger) {
-                $this->logger->info('Webdav result was taken from cache', [
-                    'path' => $path,
-                ]);
-            }
-
-            return $cacheItem->get();
+        if (WebdavClientInterface::XML_FIELD_GETCONTENTTYPE !== $xmlFieldType) {
+            return $result;
         }
 
-        $result = $onMiss($path);
-        $cacheItem->set($result);
-        $this->cache->save($cacheItem);
+        $name = $this->getCrawlerXmlFieldValue(
+            $crawler,
+            WebdavClientInterface::XML_FIELD_DISPLAYNAME
+        );
 
-        return $result;
+        $type = mimetype_from_filename($name) ?: $result;
+
+        return $type ?: WebdavClientInterface::TYPE_DIRECTORY;
     }
 
     /**
@@ -328,31 +454,73 @@ class WebdavClient extends AbstractWebdavClient
      *
      * @return bool
      */
-    protected function deleteFromCache(string $path): bool
+    protected function createSubdirectory(string $path): bool
     {
-        if (null === $this->cache) {
-            return true;
-        }
-
-        $path = trim($path, '/');
-
-        $cacheItemKeys = [
-            $this->getCacheItemKey($path),
-            $this->getCacheItemKey(
-                WebdavClientInterface::DIRECTORY_LIST_CACHE_ITEM_PREFIX.$path
-            ),
-        ];
-
         try {
-            return $this->cache->deleteItems($cacheItemKeys);
-        } catch (InvalidArgumentException $e) {
+            $response = $this->guzzleClient->getGuzzleResponse(
+                trim($path, '/'),
+                [],
+                GuzzleClientInterface::METHOD_MKCOL
+            );
+
+            return GuzzleClientInterface::HTTP_CREATED === $response->getStatusCode();
+        } catch (GuzzleClientException $e) {
             if (null !== $this->logger) {
                 $this->logger->error($e->getMessage(), [
                     'path' => $path,
                 ]);
             }
-        }
 
-        return false;
+            return false;
+        }
+    }
+
+    /**
+     * @param Crawler $crawler
+     *
+     * @throws WebdavClientException
+     *
+     * @return WebdavDto
+     */
+    protected function createWebdavDto(Crawler $crawler): WebdavDto
+    {
+        $name = $this->getCrawlerXmlFieldValue(
+            $crawler,
+            WebdavClientInterface::XML_FIELD_DISPLAYNAME
+        );
+
+        $type = $this->getCrawlerXmlFieldValue(
+            $crawler,
+            WebdavClientInterface::XML_FIELD_GETCONTENTTYPE
+        );
+
+        $created = $this->getCrawlerXmlFieldValue(
+            $crawler,
+            WebdavClientInterface::XML_FIELD_CREATIONDATE
+        );
+
+        $modified = $this->getCrawlerXmlFieldValue(
+            $crawler,
+            WebdavClientInterface::XML_FIELD_GETLASTMODIFIED
+        );
+
+        $etag = $this->getCrawlerXmlFieldValue(
+            $crawler,
+            WebdavClientInterface::XML_FIELD_GETETAG
+        );
+
+        $size = $this->getCrawlerXmlFieldValue(
+            $crawler,
+            WebdavClientInterface::XML_FIELD_GETCONTENTLENGTH
+        );
+
+        return new WebdavDto(
+            $name,
+            $type,
+            $etag,
+            (int) $size,
+            new \DateTime($created),
+            new \DateTime($modified)
+        );
     }
 }
