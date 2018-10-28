@@ -3,6 +3,8 @@
 namespace Bacart\WebdavClient\Client;
 
 use Bacart\WebdavClient\Dto\WebdavDto;
+use Bacart\WebdavClient\Dto\WebdavDtoInterface;
+use Bacart\WebdavClient\Util\WebdavClientUtils;
 use Symfony\Component\DomCrawler\Crawler;
 use Wa72\HtmlPageDom\HtmlPage;
 
@@ -16,22 +18,16 @@ interface WebdavClientInterface
     public const ALL_PAGES = -1;
     public const DEFAULT_PAGE_SIZE = 20;
 
+    public const CACHE_TTL = 'P1D';
+
     public const TYPE_FILE = 'file';
     public const TYPE_DIRECTORY = 'directory';
 
     public const HEADER_DEPTH = 'Depth';
     public const HEADER_ALLOW = 'Allow';
 
+    public const CACHE_KEY_PREFIX = 'webdav_cache';
     public const XML_FILTER = 'multistatus response';
-    public const XML_FIELDS_PREFIX = 'propstat prop ';
-
-    public const XML_FIELD_HREF = 'href';
-    public const XML_FIELD_GETETAG = self::XML_FIELDS_PREFIX.'getetag';
-    public const XML_FIELD_DISPLAYNAME = self::XML_FIELDS_PREFIX.'displayname';
-    public const XML_FIELD_CREATIONDATE = self::XML_FIELDS_PREFIX.'creationdate';
-    public const XML_FIELD_GETCONTENTTYPE = self::XML_FIELDS_PREFIX.'getcontenttype';
-    public const XML_FIELD_GETLASTMODIFIED = self::XML_FIELDS_PREFIX.'getlastmodified';
-    public const XML_FIELD_GETCONTENTLENGTH = self::XML_FIELDS_PREFIX.'getcontentlength';
 
     /**
      * @return null|string[]
@@ -51,16 +47,16 @@ interface WebdavClientInterface
         string $path,
         int $page = self::ALL_PAGES,
         int $pageSize = self::DEFAULT_PAGE_SIZE,
-        string $sortBy = self::XML_FIELD_DISPLAYNAME,
+        string $sortBy = WebdavClientUtils::XML_FIELD_DISPLAYNAME,
         int $sortOrder = self::SORT_ASC
     ): array;
 
     /**
      * @param string $path
      *
-     * @return WebdavDto|null
+     * @return WebdavDtoInterface|null
      */
-    public function getPathInfo(string $path): ?WebdavDto;
+    public function getPathInfo(string $path): ?WebdavDtoInterface;
 
     /**
      * @param string $path

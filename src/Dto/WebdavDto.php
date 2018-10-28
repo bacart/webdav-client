@@ -4,7 +4,7 @@ namespace Bacart\WebdavClient\Dto;
 
 use Bacart\WebdavClient\Client\WebdavClientInterface;
 
-class WebdavDto
+class WebdavDto implements WebdavDtoInterface
 {
     /** @var string */
     protected $name;
@@ -49,7 +49,41 @@ class WebdavDto
     }
 
     /**
-     * @return bool
+     * {@inheritdoc}
+     */
+    public function serialize(): string
+    {
+        return serialize([
+            $this->name,
+            $this->type,
+            $this->etag,
+            $this->size,
+            $this->created,
+            $this->modified,
+        ]);
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function unserialize($serialized): void
+    {
+        [
+            $this->name,
+            $this->type,
+            $this->etag,
+            $this->size,
+            $this->created,
+            $this->modified,
+        ] = unserialize($serialized, [
+            'allowed_classes' => [
+                \DateTime::class,
+            ],
+        ]);
+    }
+
+    /**
+     * {@inheritdoc}
      */
     public function isDirectory(): bool
     {
@@ -57,7 +91,7 @@ class WebdavDto
     }
 
     /**
-     * @return bool
+     * {@inheritdoc}
      */
     public function isFile(): bool
     {
@@ -65,7 +99,7 @@ class WebdavDto
     }
 
     /**
-     * @return string
+     * {@inheritdoc}
      */
     public function getName(): string
     {
@@ -73,7 +107,7 @@ class WebdavDto
     }
 
     /**
-     * @return string
+     * {@inheritdoc}
      */
     public function getType(): string
     {
@@ -81,7 +115,7 @@ class WebdavDto
     }
 
     /**
-     * @return string
+     * {@inheritdoc}
      */
     public function getEtag(): string
     {
@@ -89,7 +123,7 @@ class WebdavDto
     }
 
     /**
-     * @return int
+     * {@inheritdoc}
      */
     public function getSize(): int
     {
@@ -97,7 +131,7 @@ class WebdavDto
     }
 
     /**
-     * @return \DateTimeInterface
+     * {@inheritdoc}
      */
     public function getCreated(): \DateTimeInterface
     {
@@ -105,7 +139,7 @@ class WebdavDto
     }
 
     /**
-     * @return \DateTimeInterface
+     * {@inheritdoc}
      */
     public function getModified(): \DateTimeInterface
     {
