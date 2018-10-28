@@ -158,11 +158,7 @@ abstract class AbstractWebdavClient implements WebdavClientInterface
         }
 
         if ($cacheItem->isHit()) {
-            if (null !== $this->logger) {
-                $this->logger->info('Webdav result is taken from cache', [
-                    'path' => $path,
-                ]);
-            }
+            $this->logInfo('Webdav result is taken from cache', $path);
 
             return $cacheItem->get();
         }
@@ -212,7 +208,11 @@ abstract class AbstractWebdavClient implements WebdavClientInterface
             return false;
         }
 
-        return $this->cache->save($cacheItem);
+        if ($result = $this->cache->save($cacheItem)) {
+            $this->logInfo('Webdav result is saved to cache', $path);
+        }
+
+        return $result;
     }
 
     /**
@@ -230,12 +230,17 @@ abstract class AbstractWebdavClient implements WebdavClientInterface
         $cacheItemKey = $this->getCacheItemKey($path);
 
         try {
-            return $this->cache->deleteItem($cacheItemKey);
+            $result = $this->cache->deleteItem($cacheItemKey);
         } catch (InvalidArgumentException $e) {
             $this->logException($e, $path);
+            $result = false;
         }
 
-        return false;
+        if ($result) {
+            $this->logInfo('Webdav result is deleted from cache', $path);
+        }
+
+        return $result;
     }
 
     /**
@@ -285,5 +290,18 @@ abstract class AbstractWebdavClient implements WebdavClientInterface
         }
 
         $this->logger->error($exception->getMessage(), $context);
+    }
+
+    /**
+     * @param string $message
+     * @param string $path
+     */
+    protected function logInfo(string $message, string $path): void
+    {
+        if (null !== $this->logger) {
+            $this->logger->info($message, [
+                'path' => $path,
+            ]);
+        }
     }
 }
