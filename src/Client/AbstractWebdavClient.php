@@ -260,7 +260,7 @@ abstract class AbstractWebdavClient implements WebdavClientInterface
      * @param string $created
      * @param string $modified
      *
-     * @throws \Exception
+     * @throws WebdavClientException
      *
      * @return WebdavDtoInterface
      */
@@ -272,14 +272,18 @@ abstract class AbstractWebdavClient implements WebdavClientInterface
         string $created,
         string $modified
     ): WebdavDtoInterface {
-        return new WebdavDto(
-            $name,
-            $type,
-            $etag,
-            (int) $size,
-            new \DateTime($created),
-            new \DateTime($modified)
-        );
+        try {
+            return new WebdavDto(
+                $name,
+                $type,
+                $etag,
+                (int) $size,
+                new \DateTime($created),
+                new \DateTime($modified)
+            );
+        } catch (\Exception $e) {
+            throw new WebdavClientException($e);
+        }
     }
 
     /**

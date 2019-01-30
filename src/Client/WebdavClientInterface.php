@@ -76,6 +76,14 @@ interface WebdavClientInterface
 
     /**
      * @param string $path
+     * @param string $filename
+     *
+     * @return bool
+     */
+    public function downloadFile(string $path, string $filename): bool;
+
+    /**
+     * @param string $path
      *
      * @return null|string
      */

@@ -311,6 +311,22 @@ class WebdavClient extends AbstractWebdavClient
     /**
      * {@inheritdoc}
      */
+    public function downloadFile(string $path, string $filename): bool
+    {
+        try {
+            $this->guzzleClient->writeGuzzleResponseToFile($path, $filename);
+            $result = true;
+        } catch (GuzzleClientException $e) {
+            $this->logException($e, $path);
+            $result = false;
+        }
+
+        return $result;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
     public function readFileAsString(string $path): ?string
     {
         try {
