@@ -93,7 +93,7 @@ class WebdavClient extends AbstractWebdavClient
                 WebdavClientUtils::XML_FIELD_GETCONTENTTYPE
             );
 
-            if (!$this->fileIsValid($path, $href, $name, $type)) {
+            if (ltrim($href, '/') === $path) {
                 continue;
             }
 

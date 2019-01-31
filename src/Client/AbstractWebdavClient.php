@@ -71,23 +71,6 @@ abstract class AbstractWebdavClient implements WebdavClientInterface
 
     /**
      * @param string $path
-     * @param string $href
-     * @param string $name
-     * @param string $type
-     *
-     * @return bool
-     */
-    protected function fileIsValid(
-        string $path,
-        string $href,
-        string $name,
-        string $type
-    ): bool {
-        return ltrim($href, '/') !== $path;
-    }
-
-    /**
-     * @param string $path
      *
      * @throws WebdavClientException
      *
