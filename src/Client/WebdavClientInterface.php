@@ -14,6 +14,7 @@ namespace Bacart\WebdavClient\Client;
 use Bacart\WebdavClient\Dto\WebdavDto;
 use Bacart\WebdavClient\Dto\WebdavDtoInterface;
 use Bacart\WebdavClient\Util\WebdavClientUtils;
+use GuzzleHttp\Stream\StreamInterface;
 use Symfony\Component\DomCrawler\Crawler;
 use Wa72\HtmlPageDom\HtmlPage;
 
@@ -39,7 +40,7 @@ interface WebdavClientInterface
     public const XML_FILTER = 'multistatus response';
 
     /**
-     * @return null|string[]
+     * @return string[]|null
      */
     public function getSupportedMethods(): ?array;
 
@@ -85,7 +86,7 @@ interface WebdavClientInterface
     /**
      * @param string $path
      *
-     * @return null|string
+     * @return string|null
      */
     public function readFileAsString(string $path): ?string;
 
@@ -118,12 +119,12 @@ interface WebdavClientInterface
     public function createDirectory(string $path): bool;
 
     /**
-     * @param string $path
-     * @param string $contents
+     * @param string                                                            $path
+     * @param resource|string|int|float|StreamInterface|callable|\Iterator|null $contents
      *
      * @return bool
      */
-    public function writeToFile(string $path, string $contents): bool;
+    public function writeToFile(string $path, $contents): bool;
 
     /**
      * @param string $path

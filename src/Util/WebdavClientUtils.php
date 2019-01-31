@@ -14,8 +14,8 @@ namespace Bacart\WebdavClient\Util;
 use Bacart\Common\Util\ClassUtils;
 use Bacart\WebdavClient\Client\WebdavClientInterface;
 use Bacart\WebdavClient\Exception\WebdavClientException;
-use Symfony\Component\DomCrawler\Crawler;
 use function GuzzleHttp\Psr7\mimetype_from_filename;
+use Symfony\Component\DomCrawler\Crawler;
 
 class WebdavClientUtils
 {

@@ -246,7 +246,7 @@ class WebdavClient extends AbstractWebdavClient
      *
      * @throws WebdavClientException
      */
-    public function writeToFile(string $path, string $contents): bool
+    public function writeToFile(string $path, $contents): bool
     {
         if (!$this->createDirectory(\dirname($path))) {
             return false;
